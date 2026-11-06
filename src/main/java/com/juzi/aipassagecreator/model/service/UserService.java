@@ -1,11 +1,17 @@
-package com.juzi.aipassagecreator.service;
+package com.juzi.aipassagecreator.model.service;
 
 import com.juzi.aipassagecreator.model.dto.user.UserAddRequest;
+import com.juzi.aipassagecreator.model.dto.user.UserQueryRequest;
 import com.juzi.aipassagecreator.model.entity.User;
 import com.juzi.aipassagecreator.model.vo.LoginUserVO;
+import com.juzi.aipassagecreator.model.vo.UserVO;
+import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.service.IService;
 import jakarta.servlet.http.HttpServletRequest;
 
-public interface UserService {
+import java.util.List;
+
+public interface UserService extends IService<User> {
 
     /**
      * 用户注册
@@ -15,6 +21,27 @@ public interface UserService {
      * @return
      */
     long userRegister(String userAccount, String userPassword, String checkPassword);
+
+    /**
+     * 用户脱敏
+     * @param user
+     * @return
+     */
+    UserVO getUserVO(User user);
+
+    /**
+     * 用户列表脱敏
+     * @param userList
+     * @return
+     */
+    List<UserVO> getUserVOList(List<User> userList);
+
+    /**
+     * 获取查询条件
+     * @param userQueryRequest
+     * @return
+     */
+    QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest);
 
     /**
      * 密码加密

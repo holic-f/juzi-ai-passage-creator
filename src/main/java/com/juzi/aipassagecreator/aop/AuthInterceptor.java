@@ -5,7 +5,7 @@ import com.juzi.aipassagecreator.enums.UserRoleEnum;
 import com.juzi.aipassagecreator.exception.BusinessException;
 import com.juzi.aipassagecreator.exception.ErrorCode;
 import com.juzi.aipassagecreator.model.entity.User;
-import com.juzi.aipassagecreator.service.UserService;
+import com.juzi.aipassagecreator.model.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.aspectj.lang.ProceedingJoinPoint;

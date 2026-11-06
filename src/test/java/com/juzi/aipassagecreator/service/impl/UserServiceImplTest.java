@@ -5,6 +5,7 @@ import com.juzi.aipassagecreator.exception.ErrorCode;
 import com.juzi.aipassagecreator.mapper.UserMapper;
 import com.juzi.aipassagecreator.model.dto.user.UserAddRequest;
 import com.juzi.aipassagecreator.model.entity.User;
+import com.juzi.aipassagecreator.model.service.impl.UserServiceImpl;
 import com.mybatisflex.core.query.QueryWrapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

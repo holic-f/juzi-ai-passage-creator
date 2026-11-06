@@ -1,14 +1,18 @@
-package com.juzi.aipassagecreator.service.impl;
+package com.juzi.aipassagecreator.model.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.juzi.aipassagecreator.enums.UserRoleEnum;
 import com.juzi.aipassagecreator.exception.BusinessException;
 import com.juzi.aipassagecreator.exception.ErrorCode;
 import com.juzi.aipassagecreator.mapper.UserMapper;
 import com.juzi.aipassagecreator.model.dto.user.UserAddRequest;
+import com.juzi.aipassagecreator.model.dto.user.UserQueryRequest;
 import com.juzi.aipassagecreator.model.entity.User;
 import com.juzi.aipassagecreator.model.vo.LoginUserVO;
-import com.juzi.aipassagecreator.service.UserService;
+import com.juzi.aipassagecreator.model.vo.UserVO;
+import com.juzi.aipassagecreator.model.service.UserService;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,9 +21,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.juzi.aipassagecreator.constant.UserConstant.USER_LOGIN_STATE;
 
+/**
+ * 用户服务实现层
+ */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
     /**
@@ -68,22 +78,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     /**
-     * 密码加密
-     * @param userPassword
+     * 获取脱敏的用户登录信息
+     * @param user
      * @return
      */
     @Override
-    public String getEncryptPassword(String userPassword){
-        // 1. 定义固定盐值
-        final String SALT = "juzi";
-        // 2. 把密码和盐值拼接起来
-        String passwordWithSalt = userPassword + SALT;
-        // 3. 按 UTF-8 编码转换成字节数组
-        byte[] bytes = passwordWithSalt.getBytes(StandardCharsets.UTF_8);
-        // 4. 计算 MD5，并转换成十六进制字符串
-        String result = DigestUtils.md5DigestAsHex(bytes);
-        // 5. 返回计算结果
-        return result;
+    public LoginUserVO getLoginUserVO(User user) {
+        if (user == null){
+            return null;
+        }
+
+        LoginUserVO loginUserVO = new LoginUserVO();
+
+        // 只复制允许返回给前端的字段
+        loginUserVO.setId(user.getId());
+        loginUserVO.setUserAccount(user.getUserAccount());
+        loginUserVO.setUserName(user.getUserName());
+        loginUserVO.setUserAvatar(user.getUserAvatar());
+        loginUserVO.setUserProfile(user.getUserProfile());
+        loginUserVO.setUserRole(user.getUserRole());
+        loginUserVO.setCreateTime(user.getCreateTime());
+        loginUserVO.setUpdateTime(user.getUpdateTime());
+
+        return loginUserVO;
     }
 
     /**
@@ -98,6 +115,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         //1.校验参数
         if (StrUtil.hasBlank(userAccount, userPassword)){
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数为空");
+        }
+        if (userAccount.length() < 4 ){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号长度过短");
+        }
+        if (userPassword.length() < 6 ){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码长度过短");
         }
         //2.加密
         String encryptPassword = getEncryptPassword(userPassword);
@@ -143,24 +166,28 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      * @return
      */
     @Override
-    public LoginUserVO getLoginUserVO(User user) {
+    public UserVO getUserVO(User user){
         if (user == null){
             return null;
         }
+        UserVO userVO = new UserVO();
+        BeanUtil.copyProperties(user, userVO);//BeanUtil 通常是 Hutool 提供的工具类，将 user 中与 userVO 对应的属性值复制到 userVO 中，经常用于把数据库实体对象转换成返回给前端的视图对象。
+        return userVO;
+    }
 
-        LoginUserVO loginUserVO = new LoginUserVO();
-
-        // 只复制允许返回给前端的字段
-        loginUserVO.setId(user.getId());
-        loginUserVO.setUserAccount(user.getUserAccount());
-        loginUserVO.setUserName(user.getUserName());
-        loginUserVO.setUserAvatar(user.getUserAvatar());
-        loginUserVO.setUserProfile(user.getUserProfile());
-        loginUserVO.setUserRole(user.getUserRole());
-        loginUserVO.setCreateTime(user.getCreateTime());
-        loginUserVO.setUpdateTime(user.getUpdateTime());
-
-        return loginUserVO;
+    /**
+     * 根据用户列表获取用户视图列表
+     * @param userList
+     * @return
+     */
+    @Override
+    public List<UserVO> getUserVOList(List<User> userList){
+        if (CollUtil.isEmpty(userList)){
+            return new ArrayList<>();
+        }
+        return userList.stream()
+                .map(this::getUserVO)
+                .collect(Collectors.toList());//把一个 User 列表转换成 UserVO 列表
     }
 
     /**
@@ -178,6 +205,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         return true;
     }
+
+
+    /**
+     * 获取查询条件
+     * @param userQueryRequest
+     * @return
+     */
+    @Override
+    public QueryWrapper getQueryWrapper(UserQueryRequest userQueryRequest){
+        if (userQueryRequest == null){
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求参数为空");
+        }
+        Long id = userQueryRequest.getId();
+        String userName = userQueryRequest.getUserName();
+        String userAccount = userQueryRequest.getUserAccount();
+        String userProfile = userQueryRequest.getUserProfile();
+        String userRole = userQueryRequest.getUserRole();
+        String sortField = userQueryRequest.getSortField();
+        String sortOrder = userQueryRequest.getSortOrder();
+        return QueryWrapper.create()
+                .eq("id", id)
+                .like("user_name", userName)
+                .like("user_account", userAccount)
+                .like("user_profile", userProfile)
+                .eq("user_role", userRole)
+                .orderBy(sortField, sortOrder);
+
+    }
+
+    /**
+     * 密码加密
+     * @param userPassword
+     * @return
+     */
+    @Override
+    public String getEncryptPassword(String userPassword){
+        // 1. 定义固定盐值
+        final String SALT = "juzi";
+        // 2. 把密码和盐值拼接起来
+        String passwordWithSalt = userPassword + SALT;
+        // 3. 按 UTF-8 编码转换成字节数组
+        byte[] bytes = passwordWithSalt.getBytes(StandardCharsets.UTF_8);
+        // 4. 计算 MD5，并转换成十六进制字符串
+        String result = DigestUtils.md5DigestAsHex(bytes);
+        // 5. 返回计算结果
+        return result;
+    }
+
+
+
 
     /**
      * 添加用户
