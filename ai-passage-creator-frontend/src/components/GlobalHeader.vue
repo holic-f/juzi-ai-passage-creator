@@ -25,11 +25,14 @@
           <div v-if="loginUserStore.loginUser.id">
             <a-dropdown>
               <a-space>
-                <a-avatar :src="loginUserStore.loginUser.userAvatar" />
+                <a-avatar :src="avatarUrl" />
                 {{ loginUserStore.loginUser.userName ?? '无名' }}
               </a-space>
               <template #overlay>
                 <a-menu>
+                  <a-menu-item :disabled="avatarUploading" @click="openAvatarPicker">
+                    更换头像
+                  </a-menu-item>
                   <a-menu-item @click="doLogout">
                     <LogoutOutlined />
                     退出登录
@@ -37,6 +40,13 @@
                 </a-menu>
               </template>
             </a-dropdown>
+            <input
+                ref="avatarInput"
+                type="file"
+                accept="image/jpeg,image/png"
+                style="display: none"
+                @change="handleAvatarChange"
+            />
           </div>
           <div v-else>
             <a-button type="primary" href="/user/login">登录</a-button>
@@ -48,12 +58,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
+import { computed, h, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { type MenuProps, message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser.ts'
 import { userLogout } from '@/api/userController.ts'
 import { LogoutOutlined, HomeOutlined } from '@ant-design/icons-vue'
+import { uploadAvatar } from '@/api/avatar'
 
 const loginUserStore = useLoginUserStore()
 const router = useRouter()
@@ -117,6 +128,82 @@ const doLogout = async () => {
     await router.push('/user/login')
   } else {
     message.error('退出登录失败，' + res.data.message)
+  }
+}
+
+const avatarInput = ref<HTMLInputElement | null>(null)
+const avatarUploading = ref(false)
+const avatarPreview = ref('')
+const avatarPreviewKey = ref('')
+const avatarPreviewUser = ref<API.LoginUserVO['id']>()
+
+// 新头像保存的是对象键；旧数据可能已经是完整 URL。
+const avatarUrl = computed(() => {
+  const avatar = loginUserStore.loginUser.userAvatar
+  if (avatarPreview.value && avatar === avatarPreviewKey.value &&
+      loginUserStore.loginUser.id === avatarPreviewUser.value) return avatarPreview.value
+  if (!avatar) return undefined
+  if (/^https?:\/\//i.test(avatar)) return avatar
+  const baseUrl = import.meta.env.VITE_AVATAR_BASE_URL
+  if (!baseUrl || !avatar.startsWith('avatar/')) return undefined
+  return `${baseUrl.replace(/\/$/, '')}/${avatar.split('/').map(encodeURIComponent).join('/')}`
+})
+
+onUnmounted(() => {
+  if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+})
+
+const openAvatarPicker = () => {
+  avatarInput.value?.click()
+}
+
+const handleAvatarChange = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  // 用户取消选择时，不发送请求
+  if (!file) {
+    return
+  }
+
+  if (avatarUploading.value) return
+
+  try {
+    // 前端先给出提示；后端仍要再次校验
+    if (file.size > 2 * 1024 * 1024) {
+      message.error('图片不能超过 2 MB')
+      return
+    }
+
+    avatarUploading.value = true
+    const userId = loginUserStore.loginUser.id
+    const res = await uploadAvatar(file)
+
+    if (res.data.code !== 0) {
+      message.error('上传失败，' + (res.data.message ?? '请重试'))
+      return
+    }
+
+    if (res.data.data && loginUserStore.loginUser.id === userId) {
+      const preview = URL.createObjectURL(file)
+      if (avatarPreview.value) URL.revokeObjectURL(avatarPreview.value)
+      avatarPreview.value = preview
+      avatarPreviewKey.value = res.data.data
+      avatarPreviewUser.value = userId
+      loginUserStore.setLoginUser({ ...loginUserStore.loginUser, userAvatar: res.data.data })
+    }
+    message.success('头像上传成功')
+    try {
+      await loginUserStore.fetchLoginUser()
+    } catch {
+      message.warning('头像已上传，用户信息刷新失败')
+    }
+  } catch {
+    message.error('上传请求失败，请重试')
+  } finally {
+    avatarUploading.value = false
+    // 清空后，即使再次选择同一文件也能触发 change
+    input.value = ''
   }
 }
 </script>

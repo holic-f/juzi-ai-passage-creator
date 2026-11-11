@@ -40,6 +40,10 @@ public class User implements Serializable {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
 
+    private LocalDateTime lastLoginTime;
+    private String lastLoginIp;
+    private String lastLoginUserAgent;
+
     /**
      * 逻辑删除
      */

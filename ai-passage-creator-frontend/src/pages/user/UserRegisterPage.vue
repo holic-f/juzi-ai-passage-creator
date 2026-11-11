@@ -9,7 +9,7 @@
           name="userPassword"
           :rules="[
           { required: true, message: '请输入密码' },
-          { min: 8, message: '密码不能小于 8 位' },
+          { min: 6, message: '密码不能小于 6 位' },
         ]"
       >
         <a-input-password v-model:value="formState.userPassword" placeholder="请输入密码" />
@@ -18,11 +18,18 @@
           name="checkPassword"
           :rules="[
           { required: true, message: '请确认密码' },
-          { min: 8, message: '密码不能小于 8 位' },
+          { min: 6, message: '密码不能小于 6 位' },
           { validator: validateCheckPassword },
         ]"
       >
         <a-input-password v-model:value="formState.checkPassword" placeholder="请确认密码" />
+        <div style="height: 16px;"/>
+        <a-form-item name="captchaCode" :rules="[{ required: true, message: '请输入验证码' }]">
+          <div class="captcha-row">
+            <a-input v-model:value="formState.captchaCode" placeholder="请输入验证码"/>
+            <CaptchaImage ref="captchaImageRef" />
+          </div>
+        </a-form-item>
       </a-form-item>
       <div class="tips">
         已有账号？
@@ -39,7 +46,10 @@
 import { useRouter } from 'vue-router'
 import { userRegister } from '@/api/userController.ts'
 import { message } from 'ant-design-vue'
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
+import CaptchaImage from "@/components/CaptchaImage.vue";
+
+const captchaImageRef = ref<InstanceType<typeof CaptchaImage> | null>(null)
 
 const router = useRouter()
 
@@ -47,6 +57,7 @@ const formState = reactive<API.UserRegisterRequest>({
   userAccount: '',
   userPassword: '',
   checkPassword: '',
+  captchaCode:'',
 })
 
 /**
@@ -68,17 +79,28 @@ const validateCheckPassword = (rule: unknown, value: string, callback: (error?: 
  * @param values
  */
 const handleSubmit = async (values: API.UserRegisterRequest) => {
-  const res = await userRegister(values)
-  // 注册成功，跳转到登录页面
-  if (res.data.code === 0) {
-    message.success('注册成功')
-    router.push({
-      path: '/user/login',
-      replace: true,
-    })
-  } else {
-    message.error('注册失败，' + res.data.message)
+  try {
+    const res = await userRegister(values)
+    // 注册成功，跳转到登录页面
+    if (res.data.code === 0) {
+      message.success('注册成功')
+      router.push({
+        path: '/user/login',
+        replace: true,
+      })
+    } else {
+      message.error('注册失败，' + res.data.message)
+      refreshCaptcha()
+    }
+  }catch {
+    message.error('注册失败，请检查账号密码和验证码')
+    refreshCaptcha()
   }
+}
+//注册失败后刷新验证码
+const refreshCaptcha = () => {
+  formState.captchaCode = ''
+  captchaImageRef.value?.refresh()
 }
 </script>
 
@@ -101,5 +123,11 @@ const handleSubmit = async (values: API.UserRegisterRequest) => {
   color: #bbb;
   font-size: 13px;
   text-align: right;
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 </style>

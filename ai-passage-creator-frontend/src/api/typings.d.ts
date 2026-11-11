@@ -23,6 +23,12 @@ declare namespace API {
     message?: string;
   };
 
+  type BaseResponseString = {
+    code?: number;
+    data?: string;
+    message?: string;
+  };
+
   type BaseResponseUser = {
     code?: number;
     data?: User;
@@ -37,6 +43,11 @@ declare namespace API {
 
   type deleteUserParams = {
     id: number;
+  };
+
+  type getAvatarParams = {
+    userId: string;
+    filename: string;
   };
 
   type getUserByIdParams = {
@@ -67,6 +78,10 @@ declare namespace API {
     optimizeCountQuery?: boolean;
   };
 
+  type testDownloadFileParams = {
+    filepath: string;
+  };
+
   type User = {
     id?: number;
     userAccount?: string;
@@ -78,6 +93,9 @@ declare namespace API {
     editTime?: string;
     createTime?: string;
     updateTime?: string;
+    lastLoginTime?: string;
+    lastLoginIp?: string;
+    lastLoginUserAgent?: string;
     isDelete?: number;
   };
 
@@ -92,6 +110,7 @@ declare namespace API {
   type UserLoginRequest = {
     userAccount?: string;
     userPassword?: string;
+    captchaCode?: string;
   };
 
   type UserQueryRequest = {
@@ -110,6 +129,7 @@ declare namespace API {
     userAccount?: string;
     userPassword?: string;
     checkPassword?: string;
+    captchaCode?: string;
   };
 
   type UserUpdateRequest = {

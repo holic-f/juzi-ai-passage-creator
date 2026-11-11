@@ -6,6 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import com.juzi.aipassagecreator.enums.UserRoleEnum;
 import com.juzi.aipassagecreator.exception.BusinessException;
 import com.juzi.aipassagecreator.exception.ErrorCode;
+import com.juzi.aipassagecreator.exception.ThrowUtils;
 import com.juzi.aipassagecreator.mapper.UserMapper;
 import com.juzi.aipassagecreator.model.dto.user.UserAddRequest;
 import com.juzi.aipassagecreator.model.dto.user.UserQueryRequest;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -132,6 +134,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (user == null){
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号或密码错误");
         }
+        //更新最近一次登录信息
+        LocalDateTime loginTime = LocalDateTime.now();
+        String loginIp = request.getRemoteAddr();
+        String userAgent = request.getHeader("User-Agent");
+
+        // 请求头可能不存在，也可能超过数据库字段长度
+        if (userAgent != null && userAgent.length() > 512) {
+            userAgent = userAgent.substring(0, 512);
+        }
+
+        // 只更新需要修改的字段，避免用之前查询出的完整对象覆盖其他信息
+        User updateUser = new User();
+        updateUser.setId(user.getId());
+        updateUser.setLastLoginTime(loginTime);
+        updateUser.setLastLoginIp(loginIp);
+        updateUser.setLastLoginUserAgent(userAgent);
+
+        boolean updated = this.updateById(updateUser);
+        ThrowUtils.throwIf(!updated, ErrorCode.OPERATION_ERROR, "记录登录信息失败");
+
         //4.记录用户的登录态
         request.getSession().setAttribute(USER_LOGIN_STATE, user);
         //5.返回脱敏的用户信息
